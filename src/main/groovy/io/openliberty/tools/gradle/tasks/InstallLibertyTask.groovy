@@ -43,6 +43,9 @@ class InstallLibertyTask extends AbstractTask {
     // default to install the latest Open Liberty kernel from Maven Central repository
     protected String defaultRuntime = "io.openliberty:openliberty-kernel:[19.0.0.9,)"
 
+    // default to false, libertyVersion task sets this to get liberty config witout installing
+    protected boolean skipInstall = false;
+
     InstallLibertyTask() {
         configure({
             description 'Installs Liberty from a repository'
@@ -61,12 +64,11 @@ class InstallLibertyTask extends AbstractTask {
 
     @TaskAction
     void install() {
-        if (!isLibertyInstalledAndValid(project)) {
+        if (!isLibertyInstalledAndValid(project) && !skipInstall) {
             def params = buildInstallLibertyMap(project)
-
             project.ant.taskdef(name: 'installLiberty',
-                                classname: 'io.openliberty.tools.ant.install.InstallLibertyTask',
-                                classpath: project.buildscript.configurations.classpath.asPath)
+                            classname: 'io.openliberty.tools.ant.install.InstallLibertyTask',
+                            classpath: project.buildscript.configurations.classpath.asPath)
             project.ant.installLiberty(params)
 
             String licenseFilePath = project.configurations.getByName('libertyLicense').getAsPath()
@@ -75,11 +77,12 @@ class InstallLibertyTask extends AbstractTask {
                 def process = command.execute()
                 process.waitFor()
             }
-            
         } else {
             logger.info ("Liberty is already installed at: " + getInstallDir(project))
         }
-        createPluginXmlFile()
+        if (!skipInstall) {
+            createPluginXmlFile()
+        }
     }
 
     protected void createPluginXmlFile() {
@@ -153,7 +156,7 @@ class InstallLibertyTask extends AbstractTask {
         return hasInstallExtProps
     }
 
-    private Map<String, String> buildInstallLibertyMap(Project project) {
+    protected Map<String, String> buildInstallLibertyMap(Project project) {
 
         detachedCoords = null
         detachedConfigFilePath = null
@@ -161,7 +164,6 @@ class InstallLibertyTask extends AbstractTask {
 
         Map<String, String> result = new HashMap()
         boolean hasInstallExtensionProps = checkAndLoadInstallExtensionProperties(result)
-
         if (!hasInstallExtensionProps) {
             String runtimeFilePath = project.configurations.getByName('libertyRuntime').getAsPath()
             String coordinatesToUse = null
@@ -184,10 +186,12 @@ class InstallLibertyTask extends AbstractTask {
                 if (detachedCoords != null) {
                     Dependency dep = project.dependencies.create(detachedCoords)
                     Configuration detachedConfig = project.configurations.detachedConfiguration( dep )
+
                     ResolvedConfiguration resolvedConfig = detachedConfig.getResolvedConfiguration()
                     if (resolvedConfig.hasError()) {
                         resolvedConfig.rethrowFailure()
                     }
+                    logger.warn("detachedConfig: " + detachedConfig.getAsPath())
                     detachedConfigFilePath = detachedConfig.getAsPath()
                     runtimeFilePath = detachedConfigFilePath
                 }

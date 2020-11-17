@@ -22,13 +22,16 @@ import org.gradle.api.logging.LogLevel
 import org.gradle.api.tasks.TaskAction
 import io.openliberty.tools.ant.ServerTask
 
-class VersionTask extends AbstractTask {
+import java.util.Map.Entry
+import java.util.Set
 
+class VersionTask extends InstallLibertyTask {
     VersionTask() {
         configure({
             description 'Returns the version of the liberty installation'
             group 'Liberty'
         })
+        skipInstall = true;
     }
 
     @TaskAction
@@ -45,8 +48,14 @@ class VersionTask extends AbstractTask {
         // else use the version configured in the gradle project
         else {
             // TODO 
+            if (project.liberty.runtime.version != null) {
+                version = project.liberty.runtime.version
+            } else {
+                def params = buildInstallLibertyMap(project)
+                params.each{ k, v -> logger.warn("${k}:${v}")}
+                // could manually get the version from the resolved runtimeURL but might be a better way to do this 
+            }
         }
         logger.warn(version)
     }
-
 }
