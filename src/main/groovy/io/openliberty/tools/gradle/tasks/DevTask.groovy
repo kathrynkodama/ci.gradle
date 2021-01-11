@@ -337,6 +337,7 @@ class DevTask extends AbstractServerTask {
                 if (getServerDir(project).exists()) {
                     ServerTask serverTaskStop = createServerTask(project, "stop");
                     serverTaskStop.execute();
+                    super.logDevStop();
                 } else {
                     logger.error('There is no server to stop. The server has not been created.');
                 }
